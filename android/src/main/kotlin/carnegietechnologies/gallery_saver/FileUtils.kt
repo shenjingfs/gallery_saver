@@ -6,10 +6,12 @@ import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.text.TextUtils
 import android.util.Log
+import android.util.Size
 import android.webkit.MimeTypeMap
 import androidx.exifinterface.media.ExifInterface
 import java.io.*
@@ -78,10 +80,21 @@ internal object FileUtils {
 
                 if (imageUri != null) {
                     val pathId = ContentUris.parseId(imageUri)
-                    val miniThumb = MediaStore.Images.Thumbnails.getThumbnail(
-                            contentResolver, pathId, MediaStore.Images.Thumbnails.MINI_KIND, null
-                    )
-                    storeThumbnail(contentResolver, miniThumb, pathId)
+                    val miniThumb: Bitmap?
+                    try {
+                        miniThumb = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                            MediaStore.Images.Thumbnails.getThumbnail(
+                                    contentResolver, pathId, MediaStore.Images.Thumbnails.MINI_KIND, null
+                            )
+                        } else {
+                            contentResolver.loadThumbnail(imageUri, Size(256, 256), null)
+                        }
+                        miniThumb?.let {
+                            storeThumbnail(contentResolver, miniThumb, pathId)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "insertImage: $e")
+                    }
                 }
             } else {
                 if (imageUri != null) {
